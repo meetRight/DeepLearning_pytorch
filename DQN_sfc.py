@@ -8,11 +8,11 @@ from sfc import ServiceChainEnv
 
 # Hyper Parameters
 BATCH_SIZE = 32
-EPISODE = 400
+EPISODE = 200
 LR = 0.01                   # learning rate
 EPSILON = 0.9               # greedy policy
 GAMMA = 0.9                 # reward discount
-TARGET_REPLACE_ITER = 50   # target update frequency
+TARGET_REPLACE_ITER = 20   # target update frequency
 MEMORY_CAPACITY = 100
 N_ACTIONS = 8
 N_STATES = 31
@@ -24,7 +24,6 @@ class Net(nn.Module):
         self.fc1 = nn.Linear(N_STATES, 50)
         self.fc1.weight.data.normal_(0, 0.1)   # initialization
         self.fc2 = nn.Linear(50, 50)
-
         self.fc2.weight.data.normal_(0, 0.1)
         self.out = nn.Linear(50, N_ACTIONS)
         self.out.weight.data.normal_(0, 0.1)   # initialization
@@ -61,7 +60,7 @@ class DQN(object):
                     actions_value[0, action[0]] = -1000
         else:   # random
             while True:
-                action = np.random.randint(0, N_ACTIONS - 1)
+                action = np.random.randint(0, N_ACTIONS)
                 if state[action * 2] >= sc.vnf[count * 2] and state[action * 2 + 1] >= sc.vnf[count * 2 + 1]:
                     action = action
                     break
@@ -106,7 +105,7 @@ print('\nCollecting experience...')
 reward = []
 for i_episode in range(EPISODE):
     s = sc.reset()
-    A = []
+    A = [1]
     ep_r = 0
     for count_step in range(5):
         # env.render()
@@ -118,9 +117,14 @@ for i_episode in range(EPISODE):
 
         # modify the reward
         # x, x_dot, theta, theta_dot = s_
-        # r1 = (env.x_threshold - abs(x)) / env.x_threshold - 0.8
-        # r2 = (env.theta_threshold_radians - abs(theta)) / env.theta_threshold_radians - 0.5
-        # r = r1 + r2
+        if not done:
+            r1 = sc.process_delay[a]
+            r2 = sc.propagation_delay[A[count_step], A[count_step+1]]
+            r = 1/(r1 + r2)
+        else:
+            r1 = sc.process_delay[a]
+            r2 = sc.propagation_delay[A[count_step], A[count_step+1]] + sc.propagation_delay[A[count_step+1], 7]
+            r = 1/(r1 + r2)
 
         dqn.store_transition(s, a, r, s_)
 
